@@ -394,10 +394,13 @@ async function loadJobs(queueName) {
     const dateFrom = document.getElementById('dateFrom').value;
     const dateTo = document.getElementById('dateTo').value;
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-    
+
     let url = `/api/jobs/${encodeURIComponent(queueName)}?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
     if (state) url += `&state=${state}`;
-    
+    if (sortColumn) {
+        url += `&sortBy=${sortColumn}&sortDir=${sortDirection}`;
+    }
+
     try {
         const response = await fetch(url);
         const jobs = await response.json();
@@ -457,9 +460,6 @@ async function loadJobs(queueName) {
                 new Date(job.createdon) <= new Date(dateTo)
             );
         }
-
-        // Apply sorting
-        filteredJobs = applySorting(filteredJobs);
 
         displayJobs(filteredJobs);
         updatePagination(filteredJobs.length === ITEMS_PER_PAGE);
@@ -524,52 +524,10 @@ function sortJobs(column) {
         sortDirection = 'desc';
     }
 
-    // Reload jobs to apply new sort
+    // Reload jobs with new sort order
     if (currentQueue) {
         loadJobs(currentQueue);
     }
-}
-
-function applySorting(jobs) {
-    if (!sortColumn) return jobs;
-
-    return [...jobs].sort((a, b) => {
-        let aVal = a[sortColumn];
-        let bVal = b[sortColumn];
-
-        // Handle duration specially (calculated field)
-        if (sortColumn === 'duration') {
-            const aDuration = (a.completedon && a.startedon)
-                ? new Date(a.completedon) - new Date(a.startedon)
-                : 0;
-            const bDuration = (b.completedon && b.startedon)
-                ? new Date(b.completedon) - new Date(b.startedon)
-                : 0;
-            aVal = aDuration;
-            bVal = bDuration;
-        }
-
-        // Handle null/undefined values
-        if (aVal === null || aVal === undefined) return 1;
-        if (bVal === null || bVal === undefined) return -1;
-
-        // Handle different data types
-        if (sortColumn === 'createdon' || sortColumn === 'startedon' || sortColumn === 'completedon') {
-            aVal = new Date(aVal).getTime();
-            bVal = new Date(bVal).getTime();
-        } else if (sortColumn === 'priority' || sortColumn === 'retrycount' || sortColumn === 'duration') {
-            aVal = parseInt(aVal) || 0;
-            bVal = parseInt(bVal) || 0;
-        } else if (typeof aVal === 'string') {
-            aVal = aVal.toLowerCase();
-            bVal = bVal.toLowerCase();
-        }
-
-        // Compare
-        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
-    });
 }
 
 function updateSortIndicators() {

@@ -137,11 +137,34 @@ app.get('/api/stats/:interval', async (req, res) => {
 
 app.get('/api/jobs/:queue', async (req, res) => {
   const { queue } = req.params;
-  const { state, limit = 50, offset = 0 } = req.query;
-  
+  const { state, limit = 50, offset = 0, sortBy = 'createdon', sortDir = 'desc' } = req.query;
+
   try {
+    // Map frontend column names to database column names
+    const columnMap = {
+      'id': 'id',
+      'state': 'state',
+      'priority': 'priority',
+      'retrycount': 'retry_count',
+      'createdon': 'created_on',
+      'startedon': 'started_on',
+      'completedon': 'completed_on',
+      'duration': '(completed_on - started_on)'
+    };
+
+    const dbColumn = columnMap[sortBy] || 'created_on';
+    const direction = sortDir === 'asc' ? 'ASC' : 'DESC';
+
+    // For duration sorting, handle NULL values specially
+    let orderByClause;
+    if (sortBy === 'duration') {
+      orderByClause = `${dbColumn} ${direction} NULLS LAST`;
+    } else {
+      orderByClause = `${dbColumn} ${direction}`;
+    }
+
     let query = `
-      SELECT 
+      SELECT
         id,
         name,
         state,
@@ -157,14 +180,14 @@ app.get('/api/jobs/:queue', async (req, res) => {
       FROM pgboss.job
       WHERE name = $1
       ${state ? `AND state = $2` : ''}
-      ORDER BY created_on DESC
+      ORDER BY ${orderByClause}
       LIMIT $${state ? 3 : 2} OFFSET $${state ? 4 : 3}
     `;
-    
-    const params = state 
+
+    const params = state
       ? [queue, state, limit, offset]
       : [queue, limit, offset];
-      
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
