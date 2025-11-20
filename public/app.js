@@ -1486,9 +1486,14 @@ async function confirmClearQueue() {
     const clearType = document.querySelector('input[name="clearType"]:checked').value;
     const queueName = currentQueue;
 
-    const confirmMessage = clearType === 'all'
-        ? `Are you sure you want to delete ALL jobs in queue "${queueName}"? This action cannot be undone!`
-        : `Are you sure you want to delete all PENDING jobs in queue "${queueName}"? This action cannot be undone!`;
+    let confirmMessage;
+    if (clearType === 'all') {
+        confirmMessage = `Are you sure you want to delete ALL jobs in queue "${queueName}"? This action cannot be undone!`;
+    } else if (clearType === 'active') {
+        confirmMessage = `Are you sure you want to delete all ACTIVE jobs in queue "${queueName}"? This will remove jobs currently being processed! This action cannot be undone!`;
+    } else {
+        confirmMessage = `Are you sure you want to delete all PENDING jobs in queue "${queueName}"? This action cannot be undone!`;
+    }
 
     if (!confirm(confirmMessage)) {
         return;

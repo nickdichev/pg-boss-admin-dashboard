@@ -281,6 +281,13 @@ app.post('/api/queue/:queue/clear', async (req, res) => {
         WHERE name = $1 AND state IN ('created', 'retry')
       `;
       result = await pool.query(query, [queue]);
+    } else if (clearType === 'active') {
+      // Delete only jobs in 'active' state
+      query = `
+        DELETE FROM pgboss.job
+        WHERE name = $1 AND state = 'active'
+      `;
+      result = await pool.query(query, [queue]);
     } else if (clearType === 'all') {
       // Delete all jobs for this queue
       query = `
@@ -289,7 +296,7 @@ app.post('/api/queue/:queue/clear', async (req, res) => {
       `;
       result = await pool.query(query, [queue]);
     } else {
-      return res.status(400).json({ error: 'Invalid clearType. Must be "pending" or "all"' });
+      return res.status(400).json({ error: 'Invalid clearType. Must be "pending", "active", or "all"' });
     }
 
     res.json({
