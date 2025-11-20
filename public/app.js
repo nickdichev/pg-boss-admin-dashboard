@@ -288,6 +288,9 @@ function displayQueues(queues) {
                 </div>
                 <div class="queue-stats">
                     <span class="queue-stat">
+                        <span style="color: var(--accent-warning)">●</span> ${queue.pending}
+                    </span>
+                    <span class="queue-stat">
                         <span style="color: var(--accent-info)">●</span> ${queue.active}
                     </span>
                     <span class="queue-stat">
@@ -317,7 +320,7 @@ function updateOverviewStats(queues) {
         active: acc.active + queue.active,
         completed: acc.completed + queue.completed,
         failed: acc.failed + queue.failed,
-        pending: acc.pending + queue.created + queue.retry
+        pending: acc.pending + queue.pending
     }), { active: 0, completed: 0, failed: 0, pending: 0 });
     
     // Use standard number formatting without locale-specific formatting
