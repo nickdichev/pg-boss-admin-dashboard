@@ -453,11 +453,14 @@ async function loadJobs(queueName) {
         }
         
         if (dateTo) {
-            filteredJobs = filteredJobs.filter(job => 
+            filteredJobs = filteredJobs.filter(job =>
                 new Date(job.createdon) <= new Date(dateTo)
             );
         }
-        
+
+        // Apply sorting
+        filteredJobs = applySorting(filteredJobs);
+
         displayJobs(filteredJobs);
         updatePagination(filteredJobs.length === ITEMS_PER_PAGE);
         updateActiveFilters();
@@ -521,20 +524,40 @@ function sortJobs(column) {
         sortDirection = 'desc';
     }
 
-    // Sort the allJobs array
-    allJobs.sort((a, b) => {
-        let aVal = a[column];
-        let bVal = b[column];
+    // Reload jobs to apply new sort
+    if (currentQueue) {
+        loadJobs(currentQueue);
+    }
+}
+
+function applySorting(jobs) {
+    if (!sortColumn) return jobs;
+
+    return [...jobs].sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+
+        // Handle duration specially (calculated field)
+        if (sortColumn === 'duration') {
+            const aDuration = (a.completedon && a.startedon)
+                ? new Date(a.completedon) - new Date(a.startedon)
+                : 0;
+            const bDuration = (b.completedon && b.startedon)
+                ? new Date(b.completedon) - new Date(b.startedon)
+                : 0;
+            aVal = aDuration;
+            bVal = bDuration;
+        }
 
         // Handle null/undefined values
         if (aVal === null || aVal === undefined) return 1;
         if (bVal === null || bVal === undefined) return -1;
 
         // Handle different data types
-        if (column === 'createdon' || column === 'startedon' || column === 'completedon') {
+        if (sortColumn === 'createdon' || sortColumn === 'startedon' || sortColumn === 'completedon') {
             aVal = new Date(aVal).getTime();
             bVal = new Date(bVal).getTime();
-        } else if (column === 'priority' || column === 'retrycount') {
+        } else if (sortColumn === 'priority' || sortColumn === 'retrycount' || sortColumn === 'duration') {
             aVal = parseInt(aVal) || 0;
             bVal = parseInt(bVal) || 0;
         } else if (typeof aVal === 'string') {
@@ -547,9 +570,6 @@ function sortJobs(column) {
         if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
         return 0;
     });
-
-    // Re-display with current page
-    displayJobs(allJobs);
 }
 
 function updateSortIndicators() {
