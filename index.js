@@ -397,6 +397,99 @@ app.post('/api/queue/:queue/clear', async (req, res) => {
   }
 });
 
+// Bulk job operations
+app.post('/api/jobs/bulk/retry', async (req, res) => {
+  const { jobIds } = req.body;
+
+  if (!Array.isArray(jobIds) || jobIds.length === 0) {
+    return res.status(400).json({ error: 'jobIds must be a non-empty array' });
+  }
+
+  try {
+    // Only retry jobs that are in failed or cancelled state
+    const result = await pool.query(
+      `UPDATE pgboss.job
+       SET state = 'retry',
+           retry_count = COALESCE(retry_count, 0) + 1,
+           started_on = NULL,
+           completed_on = NULL,
+           output = NULL
+       WHERE id = ANY($1::uuid[])
+         AND state IN ('failed', 'cancelled')
+       RETURNING id`,
+      [jobIds]
+    );
+
+    res.json({
+      success: true,
+      message: `${result.rowCount} job(s) queued for retry`,
+      retriedCount: result.rowCount,
+      retriedIds: result.rows.map(r => r.id)
+    });
+  } catch (error) {
+    console.error('Error bulk retrying jobs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/jobs/bulk/cancel', async (req, res) => {
+  const { jobIds } = req.body;
+
+  if (!Array.isArray(jobIds) || jobIds.length === 0) {
+    return res.status(400).json({ error: 'jobIds must be a non-empty array' });
+  }
+
+  try {
+    // Only cancel jobs that are not already completed or cancelled
+    const result = await pool.query(
+      `UPDATE pgboss.job
+       SET state = 'cancelled',
+           completed_on = NOW()
+       WHERE id = ANY($1::uuid[])
+         AND state NOT IN ('completed', 'cancelled')
+       RETURNING id`,
+      [jobIds]
+    );
+
+    res.json({
+      success: true,
+      message: `${result.rowCount} job(s) cancelled`,
+      cancelledCount: result.rowCount,
+      cancelledIds: result.rows.map(r => r.id)
+    });
+  } catch (error) {
+    console.error('Error bulk cancelling jobs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/jobs/bulk/delete', async (req, res) => {
+  const { jobIds } = req.body;
+
+  if (!Array.isArray(jobIds) || jobIds.length === 0) {
+    return res.status(400).json({ error: 'jobIds must be a non-empty array' });
+  }
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM pgboss.job
+       WHERE id = ANY($1::uuid[])
+       RETURNING id`,
+      [jobIds]
+    );
+
+    res.json({
+      success: true,
+      message: `${result.rowCount} job(s) deleted`,
+      deletedCount: result.rowCount,
+      deletedIds: result.rows.map(r => r.id)
+    });
+  } catch (error) {
+    console.error('Error bulk deleting jobs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start server
 app.listen(port, async () => {
   console.log('\n========================================');
