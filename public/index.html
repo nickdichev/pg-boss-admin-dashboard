@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jmespath@0.16.0/jmespath.min.js"></script>
+    <!-- Flatpickr for better date/time picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
     <div class="layout">
@@ -219,11 +223,17 @@
                         </div>
                         <div class="filter-group">
                             <label>Date From</label>
-                            <input type="datetime-local" id="dateFrom" />
+                            <div class="date-input-wrapper">
+                                <input type="text" id="dateFrom" placeholder="Select date/time" />
+                                <button type="button" class="date-now-btn" onclick="setDateNow('dateFrom')">Now</button>
+                            </div>
                         </div>
                         <div class="filter-group">
                             <label>Date To</label>
-                            <input type="datetime-local" id="dateTo" />
+                            <div class="date-input-wrapper">
+                                <input type="text" id="dateTo" placeholder="Select date/time" />
+                                <button type="button" class="date-now-btn" onclick="setDateNow('dateTo')">Now</button>
+                            </div>
                         </div>
                     </div>
 

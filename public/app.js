@@ -26,15 +26,48 @@ function initializeApp() {
     // Restore interval from localStorage
     const savedInterval = localStorage.getItem('pgboss-interval') || 'hour';
     document.getElementById('intervalSelect').value = savedInterval;
-    
+
     loadQueues();
     loadGlobalStats();
-    
+
     // Set default date range
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    document.getElementById('dateFrom').value = formatDateTimeLocal(weekAgo);
-    document.getElementById('dateTo').value = formatDateTimeLocal(now);
+
+    // Initialize flatpickr date pickers
+    const flatpickrConfig = {
+        enableTime: true,
+        dateFormat: 'Y-m-d H:i',
+        time_24hr: true,
+        allowInput: true,
+        onChange: function() {
+            currentPage = 1;
+            if (currentQueue && currentTab === 'jobs') {
+                const newUrl = '#' + buildJobsUrl();
+                window.history.replaceState(null, '', newUrl);
+                loadJobs(currentQueue);
+            }
+        }
+    };
+
+    dateFromPicker = flatpickr('#dateFrom', {
+        ...flatpickrConfig,
+        defaultDate: weekAgo
+    });
+
+    dateToPicker = flatpickr('#dateTo', {
+        ...flatpickrConfig,
+        defaultDate: now
+    });
+}
+
+function setDateNow(inputId) {
+    const now = new Date();
+    if (inputId === 'dateFrom' && dateFromPicker) {
+        dateFromPicker.setDate(now, true);
+    } else if (inputId === 'dateTo' && dateToPicker) {
+        dateToPicker.setDate(now, true);
+    }
 }
 
 function setupEventListeners() {
@@ -73,24 +106,8 @@ function setupEventListeners() {
             loadJobs(currentQueue);
         }
     });
-    
-    document.getElementById('dateFrom').addEventListener('change', () => {
-        currentPage = 1;
-        if (currentQueue && currentTab === 'jobs') {
-            const newUrl = '#' + buildJobsUrl();
-            window.history.replaceState(null, '', newUrl);
-            loadJobs(currentQueue);
-        }
-    });
-    
-    document.getElementById('dateTo').addEventListener('change', () => {
-        currentPage = 1;
-        if (currentQueue && currentTab === 'jobs') {
-            const newUrl = '#' + buildJobsUrl();
-            window.history.replaceState(null, '', newUrl);
-            loadJobs(currentQueue);
-        }
-    });
+
+    // Note: Date change events are handled by flatpickr's onChange callback in initializeApp()
     
     // Bulk selection
     document.getElementById('selectAllJobs').addEventListener('change', toggleSelectAll);
@@ -156,11 +173,11 @@ function handleRoute() {
             if (params.has('state')) {
                 document.getElementById('stateFilter').value = params.get('state');
             }
-            if (params.has('from')) {
-                document.getElementById('dateFrom').value = params.get('from');
+            if (params.has('from') && dateFromPicker) {
+                dateFromPicker.setDate(params.get('from'), false);
             }
-            if (params.has('to')) {
-                document.getElementById('dateTo').value = params.get('to');
+            if (params.has('to') && dateToPicker) {
+                dateToPicker.setDate(params.get('to'), false);
             }
             if (params.has('page')) {
                 currentPage = parseInt(params.get('page')) || 1;
@@ -1215,13 +1232,17 @@ function removeFilter(type) {
             document.getElementById('stateFilter').value = '';
             break;
         case 'dateFrom':
-            document.getElementById('dateFrom').value = '';
+            if (dateFromPicker) {
+                dateFromPicker.clear();
+            }
             break;
         case 'dateTo':
-            document.getElementById('dateTo').value = '';
+            if (dateToPicker) {
+                dateToPicker.clear();
+            }
             break;
     }
-    
+
     if (currentQueue && currentTab === 'jobs') {
         currentPage = 1;
         const newUrl = '#' + buildJobsUrl();
