@@ -7,8 +7,10 @@ let queueChart = null;
 let globalChart = null;
 let refreshInterval = null;
 let activeFilters = {};
-let bulkSelectionMode = false;
+// bulkSelectionMode removed - checkboxes always visible
 let currentPage = 1;
+let dateFromPicker = null;
+let dateToPicker = null;
 let currentTab = 'stats';
 let sortColumn = 'createdon';
 let sortDirection = 'desc';
@@ -108,11 +110,10 @@ function setupEventListeners() {
     });
 
     // Note: Date change events are handled by flatpickr's onChange callback in initializeApp()
-    
+
     // Bulk selection
     document.getElementById('selectAllJobs').addEventListener('change', toggleSelectAll);
-    document.getElementById('bulkSelectBtn').addEventListener('click', toggleBulkSelection);
-    document.getElementById('bulkCancelBtn').addEventListener('click', showBulkModal);
+    document.getElementById('bulkActionsBtn').addEventListener('click', showBulkModal);
     
     // Export
     document.getElementById('exportBtn').addEventListener('click', exportJobs);
@@ -506,10 +507,8 @@ function displayJobs(jobs) {
         return `
             <tr class="${isSelected ? 'selected' : ''}" data-job-id="${job.id}">
                 <td class="checkbox-col">
-                    ${bulkSelectionMode ? 
-                        `<input type="checkbox" ${isSelected ? 'checked' : ''} 
-                                onchange="toggleJobSelection('${job.id}')" />` 
-                        : ''}
+                    <input type="checkbox" ${isSelected ? 'checked' : ''}
+                           onchange="toggleJobSelection('${job.id}')" />
                 </td>
                 <td>
                     <a href="#" onclick="showJobDetails('${job.id}', true); return false;" 
@@ -561,14 +560,10 @@ function updateSortIndicators() {
 }
 
 // Bulk Selection
-function toggleBulkSelection() {
-    bulkSelectionMode = !bulkSelectionMode;
+function clearBulkSelection() {
     selectedJobs.clear();
-    
-    document.getElementById('bulkSelectBtn').classList.toggle('active', bulkSelectionMode);
-    document.getElementById('bulkCancelBtn').style.display = bulkSelectionMode ? 'inline-flex' : 'none';
-    document.getElementById('selectAllJobs').parentElement.style.display = bulkSelectionMode ? 'table-cell' : 'none';
-    
+    document.getElementById('selectAllJobs').checked = false;
+    updateBulkSelectionUI();
     if (currentQueue) loadJobs(currentQueue);
 }
 
@@ -602,8 +597,13 @@ function toggleSelectAll() {
 
 function updateBulkSelectionUI() {
     const count = selectedJobs.size;
-    document.getElementById('bulkCancelBtn').textContent = 
-        count > 0 ? `Cancel Selected (${count})` : 'Cancel Selected';
+    const bulkBtn = document.getElementById('bulkActionsBtn');
+    if (count > 0) {
+        bulkBtn.textContent = `Bulk Actions (${count})`;
+        bulkBtn.style.display = 'inline-flex';
+    } else {
+        bulkBtn.style.display = 'none';
+    }
 }
 
 function showBulkModal() {
@@ -617,21 +617,81 @@ function showBulkModal() {
 }
 
 async function bulkCancel() {
-    if (!confirm(`Are you sure you want to cancel ${selectedJobs.size} jobs?`)) return;
-    
-    // Note: Actual implementation would need backend support
-    alert(`Bulk cancel functionality not implemented - requires pg-boss instance access`);
-    closeModal(document.getElementById('bulkModal'));
-    toggleBulkSelection();
+    if (!confirm(`Are you sure you want to cancel ${selectedJobs.size} job(s)?\n\nNote: Only jobs in active, created, or retry state will be cancelled.`)) return;
+
+    try {
+        const jobIds = Array.from(selectedJobs);
+        const response = await fetch('/api/jobs/bulk/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jobIds })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to cancel jobs');
+        }
+
+        alert(`Successfully cancelled ${result.cancelledCount} job(s)`);
+        closeModal(document.getElementById('bulkModal'));
+        clearBulkSelection();
+    } catch (error) {
+        console.error('Error bulk cancelling jobs:', error);
+        alert(`Error: ${error.message}`);
+    }
 }
 
 async function bulkRetry() {
-    if (!confirm(`Are you sure you want to retry ${selectedJobs.size} jobs?`)) return;
-    
-    // Note: Actual implementation would need backend support
-    alert(`Bulk retry functionality not implemented - requires pg-boss instance access`);
-    closeModal(document.getElementById('bulkModal'));
-    toggleBulkSelection();
+    if (!confirm(`Are you sure you want to retry ${selectedJobs.size} job(s)?\n\nNote: Only jobs in failed or cancelled state will be retried.`)) return;
+
+    try {
+        const jobIds = Array.from(selectedJobs);
+        const response = await fetch('/api/jobs/bulk/retry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jobIds })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to retry jobs');
+        }
+
+        alert(`Successfully queued ${result.retriedCount} job(s) for retry`);
+        closeModal(document.getElementById('bulkModal'));
+        clearBulkSelection();
+    } catch (error) {
+        console.error('Error bulk retrying jobs:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function bulkDelete() {
+    if (!confirm(`Are you sure you want to DELETE ${selectedJobs.size} job(s)?\n\nThis action cannot be undone!`)) return;
+
+    try {
+        const jobIds = Array.from(selectedJobs);
+        const response = await fetch('/api/jobs/bulk/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jobIds })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to delete jobs');
+        }
+
+        alert(`Successfully deleted ${result.deletedCount} job(s)`);
+        closeModal(document.getElementById('bulkModal'));
+        clearBulkSelection();
+    } catch (error) {
+        console.error('Error bulk deleting jobs:', error);
+        alert(`Error: ${error.message}`);
+    }
 }
 
 // Job Details and Actions
