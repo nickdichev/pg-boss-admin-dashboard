@@ -601,6 +601,71 @@ button {
     font-size: 14px;
 }
 
+.date-input-wrapper {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.date-input-wrapper input {
+    flex: 1;
+}
+
+.date-now-btn {
+    padding: 8px 12px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.date-now-btn:hover {
+    background: var(--accent-primary-hover, #4f8ff7);
+}
+
+/* Flatpickr customizations for dark theme */
+.flatpickr-calendar {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+.flatpickr-months .flatpickr-month,
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-weekdays,
+.flatpickr-day {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+.flatpickr-day:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+.flatpickr-day.selected {
+    background: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.flatpickr-day.today {
+    border-color: var(--accent-primary) !important;
+}
+
+.flatpickr-time input {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+.flatpickr-time .flatpickr-am-pm {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
 .active-filters {
     display: flex;
     flex-wrap: wrap;
